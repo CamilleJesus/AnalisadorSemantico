@@ -1,0 +1,19 @@
+programa {
+
+	constantes {
+		inteiro a = 0;
+		texto padrao = verdadeiro;
+	}
+
+	metodo principal ( boleano logico) : vazio {
+
+	}
+
+	metodo calcular( inteiro num, texto abc) : inteiro {  //Precisa de espaço entre delimitador e próximo token.
+
+	    variaveis {
+            inteiro b = a, c;
+	    }
+	    c = 3;
+    }
+}
