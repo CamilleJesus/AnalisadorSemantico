@@ -1,2 +1,2 @@
 
-Sucesso!
+Erro semântico na linha 9. Tentativa de modificação de constante.
