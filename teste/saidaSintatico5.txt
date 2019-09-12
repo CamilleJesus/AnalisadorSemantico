@@ -1,2 +1,0 @@
-
-Erro semântico na linha 5. Tipo incompatível com a declaração.

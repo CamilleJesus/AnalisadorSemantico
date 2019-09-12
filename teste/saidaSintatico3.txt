@@ -1,2 +1,0 @@
-
-Erro semântico na linha 5. Identificador já declarado.
