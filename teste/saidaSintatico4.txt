@@ -1,2 +1,3 @@
 
 Erro semântico na linha 9. Tentativa de modificação de constante.
+Erro semântico na linha 9. Identificador não declarado.

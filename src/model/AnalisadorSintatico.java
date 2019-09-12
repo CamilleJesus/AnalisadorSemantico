@@ -6,6 +6,7 @@ Data: 18/08/2019
 package model;
 
 import util.simbolo.Constante;
+import util.simbolo.Variavel;
 import util.token.Token;
 
 import java.io.BufferedWriter;
@@ -25,6 +26,7 @@ public class AnalisadorSintatico {
     private long linhaErro = 0;
     private ArrayList<ArrayList<Token>> listasTokens;
     private ArrayList<Constante> tabelaConstantes;
+    private ArrayList<Variavel> tabelaVariaveis;
 
     public AnalisadorSintatico() {
         PrimeiroDefConstante = new ArrayList<>();
@@ -48,6 +50,7 @@ public class AnalisadorSintatico {
         listaTokens = new ArrayList<>();
         listasTokens = new ArrayList<>();
         tabelaConstantes = new ArrayList<>();
+        tabelaVariaveis = new ArrayList<>();
 
         // DEFINIÇÃO DOS CONJUNTOS PRIMEIROS
         PrimeiroDefConstante.add("constantes");
@@ -371,7 +374,7 @@ public class AnalisadorSintatico {
         if (listaTokens.get(tokenAnterior).getClasse().equals("IDENTIFICADOR")) {
             identificador = token;
 
-            if (!verificarTabela("constante", identificador)) {
+            if (verificarTabela("constante", identificador, escopo).equals("existe")) {
                 listaErros.add(mensagemErroSemantico(linhaErro, "repetido", ""));
             }
             proximoToken();
@@ -390,6 +393,7 @@ public class AnalisadorSintatico {
     public void Tipo() {
 
         if ((token.equals("vazio"))) {
+            tipoSimbolo = token;
             proximoToken();
         } else if (PrimeiroTipoId.contains(token)) {
             TipoId();
@@ -411,6 +415,13 @@ public class AnalisadorSintatico {
     public void Valor() {
 
         if (listaTokens.get(tokenAnterior).getClasse().equals("IDENTIFICADOR")) {
+            tipoValor = retornarTipo(listaTokens.get(tokenAnterior).getLexema(), "identificador");
+
+            if (tipoValor.equals("nao_existe")) {
+                listaErros.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
+            } else if (verificarTipo()) {
+                tabelaVariaveis.add(new Variavel(tipoSimbolo, identificador, tipoValor));
+            }
             proximoToken();
         } else if (token.equals("(")) {
             proximoToken();
@@ -437,7 +448,7 @@ public class AnalisadorSintatico {
     public void ValorConst() {
 
         if ((listaTokens.get(tokenAnterior).getClasse().equals("NUMERO")) || (listaTokens.get(tokenAnterior).getClasse().equals("CADEIA_CARACTERES")) || (token.equals("verdadeiro")) || (token.equals("falso"))) {
-            tipoValor = retornarTipo(token);
+            tipoValor = retornarTipo("", token);
             System.out.println(tipoSimbolo);
             System.out.println(identificador);
             System.out.println(tipoValor);
@@ -524,11 +535,11 @@ public class AnalisadorSintatico {
         } else if (PrimeiroDefLeia.contains(token)) {
             DefLeia();
             Declaracao();
-        } else if ((PrimeiroAtribuicao.contains(token)) || (listaTokens.get(tokenAnterior).getClasse().equals("IDENTIFICADOR")) || (listaTokens.get(tokenAnterior).getClasse().equals("NUMERO")) || (listaTokens.get(tokenAnterior).getClasse().equals("CADEIA_CARACTERES"))) {
-            DefExpressao();
-            Declaracao();
         } else if (PrimeiroDefResultado.contains(token)) {
             DefResultado();
+            Declaracao();
+        } else if ((PrimeiroAtribuicao.contains(token)) || (listaTokens.get(tokenAnterior).getClasse().equals("IDENTIFICADOR")) || (listaTokens.get(tokenAnterior).getClasse().equals("NUMERO")) || (listaTokens.get(tokenAnterior).getClasse().equals("CADEIA_CARACTERES"))) {
+            DefExpressao();
             Declaracao();
         }
     }
@@ -680,7 +691,9 @@ public class AnalisadorSintatico {
         if (listaTokens.get(tokenAnterior).getClasse().equals("IDENTIFICADOR")) {
             identificador = token;
 
-            if (!verificarTabela("constante", identificador)) {
+            if (verificarTabela("constante", identificador, escopo).equals("existe")) {
+                listaErros.add(mensagemErroSemantico(linhaErro, "repetido", ""));
+            } else if (verificarTabela("variavel", identificador, escopo).equals("existe")) {
                 listaErros.add(mensagemErroSemantico(linhaErro, "repetido", ""));
             }
             proximoToken();
@@ -888,8 +901,12 @@ public class AnalisadorSintatico {
 
     public void DefExpressao() {
 
-        if (!verificarTabela("constante", token)) {
+        if (verificarTabela("constante", token, escopo).equals("existe")) {
             listaErros.add(mensagemErroSemantico(linhaErro, "atribuicao", ""));
+        }
+
+        if (verificarTabela("variavel", token, escopo).equals("nao_existe")) {
+            listaErros.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
         }
 
         if (token.equals(";")) {
@@ -1191,6 +1208,8 @@ public class AnalisadorSintatico {
             return ("Erro semântico na linha " + linhaErro + ". Identificador já declarado.");
         } else if (tipo.equals("atribuicao")) {
             return ("Erro semântico na linha " + linhaErro + ". Tentativa de modificação de constante.");
+        } else if (tipo.equals("nao_declarado")) {
+            return ("Erro semântico na linha " + linhaErro + ". Identificador não declarado.");
         }
         return "";
     }
@@ -1219,7 +1238,7 @@ public class AnalisadorSintatico {
         linhaErro = 0;
     }
 
-    public boolean verificarTabela(String categoria, String identificador) {
+    public String verificarTabela(String categoria, String identificador, String escopo) {
 
         switch (categoria) {
             case "constante":
@@ -1229,17 +1248,29 @@ public class AnalisadorSintatico {
                     for (Constante constante : tabelaConstantes) {
 
                         if (identificador.equals(constante.getIdentificador())) {
-                            return false;
+                            return "existe";
                         }
                     }
-                    return true;
+                    return "nao_existe";
                 } else {
-                    return true;
+                    return "lista_vazia";
                 }
             case "variavel":
-                break;
+
+                if (!tabelaVariaveis.isEmpty()) {
+
+                    for (Variavel variavel : tabelaVariaveis) {
+
+                        if ((identificador.equals(variavel.getIdentificador())) && (escopo.equals(variavel.getEscopo()))) {
+                            return "existe";
+                        }
+                    }
+                    return "nao_existe";
+                } else {
+                    return "lista_vazia";
+                }
         }
-        return true;
+        return null;
     }
 
     public String getTipoTabela() {
@@ -1253,9 +1284,31 @@ public class AnalisadorSintatico {
         return "inexistente";
     }
 
-    public String retornarTipo(String valor) {
+    public String retornarTipo(String identificador, String valor) {
 
-        if ((valor.equals("verdadeiro")) || (valor.equals("falso"))) {
+        if (valor.equals("identificador")) {
+
+            if (!tabelaConstantes.isEmpty()) {
+
+                for (Constante constante : tabelaConstantes) {
+
+                    if (identificador.equals(constante.getIdentificador())) {
+                        return (constante.getTipo());
+                    }
+                }
+            }
+
+            if (!tabelaVariaveis.isEmpty()) {
+
+                for (Variavel variavel : tabelaVariaveis) {
+
+                    if ((identificador.equals(variavel.getIdentificador())) && (escopo.equals(variavel.getEscopo()))) {
+                        return (variavel.getTipo());
+                    }
+                }
+            }
+            return "nao_existe";
+        } else if ((valor.equals("verdadeiro")) || (valor.equals("falso"))) {
             return "boleano";
         } else if (valor.contains("\"")) {
             return "texto";
