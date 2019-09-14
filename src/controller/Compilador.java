@@ -6,16 +6,16 @@ Data: 18/08/2019
 package controller;
 
 import model.AnalisadorLexico;
-import model.AnalisadorSintatico;
+import model.AnalisadorSemantico;
 
 public class Compilador {
 
     private AnalisadorLexico lexico;
-    private AnalisadorSintatico sintatico;
+    private AnalisadorSemantico sintatico;
 
     private Compilador() {
         this.lexico = new AnalisadorLexico();
-        this.sintatico = new AnalisadorSintatico();
+        this.sintatico = new AnalisadorSemantico();
     }
 
     public static void main(String[] args) {
@@ -26,6 +26,6 @@ public class Compilador {
     private void executar() {
         lexico.mainLexico();
         sintatico.setListasTokens(lexico.getListasTokens());
-        sintatico.mainSintatico();
+        sintatico.mainSemantico();
     }
 }
