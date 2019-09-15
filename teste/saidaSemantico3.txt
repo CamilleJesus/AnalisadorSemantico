@@ -1,2 +1,3 @@
 
 Erro semântico na linha 5. Identificador já declarado.
+Erro semântico na linha 23. Identificador não declarado.

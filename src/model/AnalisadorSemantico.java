@@ -5,8 +5,7 @@ Data: 18/08/2019
 */
 package model;
 
-import util.simbolo.Constante;
-import util.simbolo.Variavel;
+import util.simbolo.*;
 import util.token.Token;
 
 import java.io.BufferedWriter;
@@ -19,7 +18,7 @@ public class AnalisadorSemantico {
     private ArrayList<String>  PrimeiroDefConstante, PrimeiroDefMetodo, PrimeiroTipoId, PrimeiroAtribuicao, PrimeiroDefVariavel;
     private ArrayList<String> PrimeiroDefSe, PrimeiroDefEnquanto, PrimeiroDefEscreva, PrimeiroDefLeia, PrimeiroDefResultado;
     private ArrayList<String> PrimeiroOpRelacionalIgual, PrimeiroOpRelacionalOutros, PrimeiroOpAritmeticoAd, PrimeiroOpAritmeticoMul;
-    private ArrayList<String> PrimeiroOpUnario, PrimeiroOpPosfixo, listaErros, PrimeiroDefPrincipal;
+    private ArrayList<String> PrimeiroOpUnario, PrimeiroOpPosfixo, listaErrosSintaticos, listaErrosSemanticos, PrimeiroDefPrincipal, auxListaParam;
     private ArrayList<Token> listaTokens;
     private String token, tipoSimbolo, identificador, tipoValor, escopo, escopo2;
     private int numProxToken, numTokenAtual, numeroArquivo;
@@ -27,6 +26,7 @@ public class AnalisadorSemantico {
     private ArrayList<ArrayList<Token>> listasTokens;
     private ArrayList<Constante> tabelaConstantes;
     private ArrayList<Variavel> tabelaVariaveis;
+    private ArrayList<Metodo> tabelaMetodos;
 
     public AnalisadorSemantico() {
         PrimeiroDefConstante = new ArrayList<>();
@@ -46,11 +46,14 @@ public class AnalisadorSemantico {
         PrimeiroOpAritmeticoMul = new ArrayList<>();
         PrimeiroOpUnario = new ArrayList<>();
         PrimeiroOpPosfixo = new ArrayList<>();
-        listaErros = new ArrayList<>();
+        listaErrosSintaticos = new ArrayList<>();
+        listaErrosSemanticos = new ArrayList<>();
         listaTokens = new ArrayList<>();
         listasTokens = new ArrayList<>();
         tabelaConstantes = new ArrayList<>();
         tabelaVariaveis = new ArrayList<>();
+        tabelaMetodos = new ArrayList<>();
+        auxListaParam = new ArrayList<>();
 
         // DEFINIÇÃO DOS CONJUNTOS PRIMEIROS
         PrimeiroDefConstante.add("constantes");
@@ -131,7 +134,9 @@ public class AnalisadorSemantico {
                 numeroArquivo = i + 1;
                 setListaTokens(listasTokens.get(i));
                 procedimentosGramatica();
-                escreverArquivo();
+                escreverArquivoSintatico();
+                escreverArquivoSemantico();
+                imprimirTabelas();
                 limparEstruturas();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -172,13 +177,13 @@ public class AnalisadorSemantico {
                 if (token.equals("}")) {
                     proximoToken();
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "programa"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "programa"));
         }
     }
 
@@ -193,7 +198,7 @@ public class AnalisadorSemantico {
             DefPrincipal();
             DefGlobal2();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "principal"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "principal"));
         }
     }
 
@@ -220,13 +225,13 @@ public class AnalisadorSemantico {
                     this.escopo = "programa";
                     proximoToken();
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "constantes"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "constantes"));
         }
     }
 
@@ -237,7 +242,7 @@ public class AnalisadorSemantico {
             proximoToken();
 
             if (token.equals("principal")) {
-                this.escopo = "principal";
+                escopo = "principal";
                 proximoToken();
 
                 if (token.equals("(")) {
@@ -251,6 +256,15 @@ public class AnalisadorSemantico {
                             proximoToken();
                             Tipo();
 
+                            if (!verificarTabela(escopo, escopo, "").equals("existe")) {
+                                Metodo metodo = new Metodo(escopo, tipoSimbolo);
+                                metodo.clonarListaParametro(auxListaParam);
+                                tabelaMetodos.add(metodo);
+                                auxListaParam.clear();
+                            } else {
+                                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "assinatura", ""));
+                            }
+
                             if (token.equals("{")) {
                                 proximoToken();
                                 Declaracao();
@@ -259,25 +273,25 @@ public class AnalisadorSemantico {
                                     this.escopo = "programa";
                                     proximoToken();
                                 } else {
-                                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
                                 }
                             } else {
-                                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
+                                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
                             }
                         } else {
-                            listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ":"));
+                            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ":"));
                         }
                     } else {
-                        listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
+                        listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
                     }
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "principal"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "principal"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "metodo"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "metodo"));
         }
     }
 
@@ -302,6 +316,15 @@ public class AnalisadorSemantico {
                             proximoToken();
                             Tipo();
 
+                            if (!verificarTabela("metodo", escopo, "").equals("existe")) {
+                                Metodo metodo = new Metodo(escopo, tipoSimbolo);
+                                metodo.clonarListaParametro(auxListaParam);
+                                tabelaMetodos.add(metodo);
+                                auxListaParam.clear();
+                            } else {
+                                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "assinatura", ""));
+                            }
+
                             if (token.equals("{")) {
                                 proximoToken();
                                 Declaracao();
@@ -310,25 +333,25 @@ public class AnalisadorSemantico {
                                     this.escopo = "programa";
                                     proximoToken();
                                 } else {
-                                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
                                 }
                             } else {
-                                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
+                                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
                             }
                         } else {
-                            listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ":"));
+                            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ":"));
                         }
                     } else {
-                        listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
+                        listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
                     }
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "identificador", "método"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "identificador", "método"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "metodo"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "metodo"));
         }
     }
 
@@ -342,10 +365,10 @@ public class AnalisadorSemantico {
                 proximoToken();
                 ListaConst2();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "tipo", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "tipo", ""));
         }
     }
 
@@ -365,7 +388,7 @@ public class AnalisadorSemantico {
             AtribuicaoConst();
             ListaAtribuicaoConst();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "tipo", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "tipo", ""));
         }
     }
 
@@ -384,7 +407,7 @@ public class AnalisadorSemantico {
             identificador = token;
 
             if (verificarTabela("constante", identificador, escopo).equals("existe")) {
-                listaErros.add(mensagemErroSemantico(linhaErro, "repetido", ""));
+                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "repetido", ""));
             }
             proximoToken();
 
@@ -392,10 +415,10 @@ public class AnalisadorSemantico {
                 proximoToken();
                 ValorConst();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "="));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "="));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "identificador", "constante"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "identificador", "constante"));
         }
     }
 
@@ -407,7 +430,7 @@ public class AnalisadorSemantico {
         } else if (PrimeiroTipoId.contains(token)) {
             TipoId();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "tipo", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "tipo", ""));
         }
     }
 
@@ -417,7 +440,7 @@ public class AnalisadorSemantico {
             tipoSimbolo = token;
             proximoToken();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "tipo", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "tipo", ""));
         }
     }
 
@@ -431,14 +454,14 @@ public class AnalisadorSemantico {
             }
 
             if (tipoValor.equals("nao_existe")) {
-                listaErros.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
+                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
             } else if (verificarTipo()) {
 
                 if (verificarTabela("variavel", identificador, escopo).equals("existe")) {
-                    tabelaVariaveis.get(getPosTabela()).setValor(tipoValor);
+                    tabelaVariaveis.get(getPosVariavel()).setValor(tipoValor);
                 }
             } else {
-                listaErros.add(mensagemErroSemantico(linhaErro, "tipo", ""));
+                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "tipo", ""));
             }
             proximoToken();
         } else if (token.equals("(")) {
@@ -450,15 +473,15 @@ public class AnalisadorSemantico {
                 if (token.equals(")")) {
                     proximoToken();
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "tipo", "retorno"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "tipo", "retorno"));
             }
         } else if((listaTokens.get(numTokenAtual).getClasse().equals("NUMERO")) || (listaTokens.get(numTokenAtual).getClasse().equals("CADEIA_CARACTERES")) || (token.equals("verdadeiro")) || (token.equals("falso"))) {
             ValorConst();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "valor", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "valor", ""));
         }
     }
 
@@ -467,21 +490,18 @@ public class AnalisadorSemantico {
 
         if ((listaTokens.get(numTokenAtual).getClasse().equals("NUMERO")) || (listaTokens.get(numTokenAtual).getClasse().equals("CADEIA_CARACTERES")) || (token.equals("verdadeiro")) || (token.equals("falso"))) {
             tipoValor = retornarTipo("", token);
-            System.out.println(tipoSimbolo);
-            System.out.println(identificador);
-            System.out.println(tipoValor);
 
             if (escopo.equals("constantes")) {
 
                 if (verificarTipo()) {
                     tabelaConstantes.add(new Constante(tipoSimbolo, identificador, tipoValor));
                 } else {
-                    listaErros.add(mensagemErroSemantico(linhaErro, "tipo", ""));
+                    listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "tipo", ""));
                 }
             }
             proximoToken();
         }  else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "valor", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "valor", ""));
         }
     }
 
@@ -492,10 +512,16 @@ public class AnalisadorSemantico {
             TipoId();
 
             if (listaTokens.get(numTokenAtual).getClasse().equals("IDENTIFICADOR")) {
+                identificador = token;
+                Variavel variavel = new Variavel(tipoSimbolo, token, "");
+                variavel.setEscopo(escopo);
+                tabelaVariaveis.add(variavel);
+                auxListaParam.add(tipoSimbolo);
+                auxListaParam.add(identificador);
                 proximoToken();
                 ListaParam2();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "identificador", "parâmetro"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "identificador", "parâmetro"));
             }
         }
     }
@@ -508,10 +534,16 @@ public class AnalisadorSemantico {
             TipoId();
 
             if (listaTokens.get(numTokenAtual).getClasse().equals("IDENTIFICADOR")) {
+                identificador = token;
+                Variavel variavel = new Variavel(tipoSimbolo, token, "");
+                variavel.setEscopo(escopo);
+                tabelaVariaveis.add(variavel);
+                auxListaParam.add(tipoSimbolo);
+                auxListaParam.add(identificador);
                 proximoToken();
                 ListaParam2();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "identificador", "parâmetro"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "identificador", "parâmetro"));
             }
         }
     }
@@ -522,7 +554,7 @@ public class AnalisadorSemantico {
             Atribuicao();
             ListaArg2();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "valor", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "valor", ""));
         }
     }
 
@@ -577,13 +609,13 @@ public class AnalisadorSemantico {
                     escopo2 = "";
                     proximoToken();
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "variaveis"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "variaveis"));
         }
     }
 
@@ -594,7 +626,7 @@ public class AnalisadorSemantico {
             DeclaracaoVar();
             ListaVar2();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, " ", "Variável esperada não encontrada."));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, " ", "Variável esperada não encontrada."));
         }
     }
 
@@ -617,10 +649,10 @@ public class AnalisadorSemantico {
             if (token.equals(";")) {
                 proximoToken();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "tipo", "variável"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "tipo", "variável"));
         }
     }
 
@@ -630,7 +662,7 @@ public class AnalisadorSemantico {
             AtribuicaoVar();
             ListaDeclaracaoVar2();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, " ", "Variável esperada não encontrada."));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, " ", "Variável esperada não encontrada."));
         }
     }
 
@@ -669,7 +701,7 @@ public class AnalisadorSemantico {
             ListaInicializacaoVar();
             Inicializacao2();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "valor", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "valor", ""));
         }
     }
 
@@ -683,10 +715,10 @@ public class AnalisadorSemantico {
             if (token.equals("}")) {
                 proximoToken();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
             }
         } else {   //VERIFICAR
-            listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ", ou }"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ", ou }"));
         }
     }
 
@@ -713,9 +745,9 @@ public class AnalisadorSemantico {
             identificador = token;
 
             if (verificarTabela("constante", identificador, "").equals("existe")) {
-                listaErros.add(mensagemErroSemantico(linhaErro, "repetido", ""));
+                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "repetido", ""));
             } else if (verificarTabela("variavel", identificador, escopo).equals("existe")) {
-                listaErros.add(mensagemErroSemantico(linhaErro, "repetido", ""));
+                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "repetido", ""));
             } else {
                 Variavel variavel = new Variavel(tipoSimbolo, identificador, "");
                 variavel.setEscopo(escopo);
@@ -725,7 +757,7 @@ public class AnalisadorSemantico {
             proximoToken();
             Declarador2();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "identificador", "variável"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "identificador", "variável"));
         }
     }
 
@@ -746,13 +778,13 @@ public class AnalisadorSemantico {
                 proximoToken();
                 Declarador2();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "]"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "]"));
             }
         } else if(token.equals("]")) {
             proximoToken();
             Declarador2();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "valor", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "valor", ""));
         }
     }
 
@@ -779,22 +811,22 @@ public class AnalisadorSemantico {
                                 proximoToken();
                                 DefSenao();
                             } else {
-                                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
                             }
                         } else {
-                            listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
+                            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
                         }
                     } else {
-                        listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "entao"));
+                        listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "entao"));
                     }
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "se"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "se"));
         }
     }
 
@@ -810,10 +842,10 @@ public class AnalisadorSemantico {
                 if (token.equals("}")) {
                     proximoToken();
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
             }
         }
     }
@@ -837,19 +869,19 @@ public class AnalisadorSemantico {
                         if (token.equals("}")) {
                             proximoToken();
                         } else {
-                            listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
+                            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "}"));
                         }
                     } else {
-                        listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
+                        listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "{"));
                     }
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "enquanto"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "enquanto"));
         }
     }
 
@@ -868,16 +900,16 @@ public class AnalisadorSemantico {
                     if (token.equals(";")) {
                         proximoToken();
                     } else {
-                        listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
+                        listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
                     }
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "escreva"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "escreva"));
         }
     }
 
@@ -887,6 +919,7 @@ public class AnalisadorSemantico {
             proximoToken();
 
             if (token.equals("(")) {
+                escopo2 = "leia";
                 proximoToken();
                 ListaArg();
 
@@ -896,16 +929,16 @@ public class AnalisadorSemantico {
                     if (token.equals(";")) {
                         proximoToken();
                     } else {
-                        listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
+                        listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
                     }
                 } else {
-                    listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
+                    listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
                 }
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", "("));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "leia"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "leia"));
         }
     }
 
@@ -918,21 +951,21 @@ public class AnalisadorSemantico {
             if (token.equals(";")) {
                 proximoToken();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "palavra", "resultado"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "palavra", "resultado"));
         }
     }
 
     public void DefExpressao() {
         /*
         if (verificarTabela("constante", token, escopo).equals("existe")) {
-            listaErros.add(mensagemErroSemantico(linhaErro, "atribuicao", ""));
+            listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "atribuicao", ""));
         }
 
         if (verificarTabela("variavel", token, escopo).equals("nao_existe")) {
-            listaErros.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
+            listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
         }
         */
 
@@ -944,7 +977,7 @@ public class AnalisadorSemantico {
             if (token.equals(";")) {
                 proximoToken();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ";"));
             }
         }
     }
@@ -980,7 +1013,7 @@ public class AnalisadorSemantico {
             String tokenAnterior = listaTokens.get(numTokenAtual - 1).getLexema();
 
             if ((verificarTabela("constante", tokenAnterior, "").equals("existe")) && (!escopo.equals("constantes"))) {
-                listaErros.add(mensagemErroSemantico(linhaErro, "atribuicao", ""));
+                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "atribuicao", ""));
             }
             proximoToken();
             ExprAtribuicao();
@@ -1128,7 +1161,7 @@ public class AnalisadorSemantico {
         if ((token.equals("==")) || (token.equals("!="))) {
             proximoToken();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "operador", "relacional de igualdade"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "operador", "relacional de igualdade"));
         }
     }
 
@@ -1137,7 +1170,7 @@ public class AnalisadorSemantico {
         if ((token.equals("<")) || (token.equals(">")) || (token.equals("<=")) || (token.equals(">="))) {
             proximoToken();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "operador", "relacional de comparação"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "operador", "relacional de comparação"));
         }
     }
 
@@ -1146,7 +1179,7 @@ public class AnalisadorSemantico {
         if ((token.equals("+")) || (token.equals("-"))) {
             proximoToken();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "operador", "aritmético de adição"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "operador", "aritmético de adição"));
         }
     }
 
@@ -1155,7 +1188,7 @@ public class AnalisadorSemantico {
         if ((token.equals("*")) || (token.equals("/"))) {
             proximoToken();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "operador", "aritmético de multiplicação"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "operador", "aritmético de multiplicação"));
         }
     }
 
@@ -1164,7 +1197,7 @@ public class AnalisadorSemantico {
         if ((token.equals("++")) || (token.equals("--")) || (token.equals("!"))) {
             proximoToken();
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "operador", "aritmético de multiplicação"));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "operador", "aritmético de multiplicação"));
         }
     }
 
@@ -1189,7 +1222,7 @@ public class AnalisadorSemantico {
                 proximoToken();
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "valor", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "valor", ""));
         }
     }
 
@@ -1203,10 +1236,10 @@ public class AnalisadorSemantico {
             if(token.equals(")")) {
                 proximoToken();
             } else {
-                listaErros.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
+                listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
             }
         } else {
-            listaErros.add(mensagemErroSintatico(linhaErro, "valor", ""));
+            listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "valor", ""));
         }
     }
 
@@ -1234,38 +1267,91 @@ public class AnalisadorSemantico {
 
     public String mensagemErroSemantico(long linhaErro, String tipo, String valor) {
 
-        if (tipo.equals("tipo")) {
-            return ("Erro semântico na linha " + linhaErro + ". Tipo incompatível com a declaração.");
-        } else if (tipo.equals("repetido")) {
-            return ("Erro semântico na linha " + linhaErro + ". Identificador já declarado.");
-        } else if (tipo.equals("atribuicao")) {
-            return ("Erro semântico na linha " + linhaErro + ". Tentativa de modificação de constante.");
-        } else if (tipo.equals("nao_declarado")) {
-            return ("Erro semântico na linha " + linhaErro + ". Identificador não declarado.");
+        switch (tipo) {
+            case "tipo":
+                return ("Erro semântico na linha " + linhaErro + ". Tipo incompatível com a declaração.");
+            case "repetido":
+                return ("Erro semântico na linha " + linhaErro + ". Identificador já declarado.");
+            case "atribuicao":
+                return ("Erro semântico na linha " + linhaErro + ". Tentativa de modificação de constante.");
+            case "nao_declarado":
+                return ("Erro semântico na linha " + linhaErro + ". Identificador não declarado.");
+            case "assinatura":
+                return ("Erro semântico na linha " + linhaErro + ". Assinatura de método já existente.");
         }
-        return "";
+        return null;
     }
 
-    public void escreverArquivo() throws IOException {
-        BufferedWriter buffWrite = new BufferedWriter(new FileWriter("teste/saidaSemantico" + numeroArquivo + ".txt"));
+    public void escreverArquivoSintatico() throws IOException {
+        BufferedWriter buffWrite = new BufferedWriter(new FileWriter("teste/saidaSintatico" + numeroArquivo + ".txt"));
 
-        if (listaErros.isEmpty()) {
+        if (listaErrosSintaticos.isEmpty()) {
             buffWrite.append("\nSucesso!");
         } else {
 
-            for (int i = 0; i < listaErros.size(); i++) {
-                buffWrite.append("\n" + listaErros.get(i));
+            for (int i = 0; i < listaErrosSintaticos.size(); i++) {
+                buffWrite.append("\n" + listaErrosSintaticos.get(i));
+            }
+        }
+        buffWrite.close();
+        System.out.println("\nResultado da análise sintática no arquivo: saidaSintatico" + numeroArquivo + ".txt");
+    }
+
+    public void escreverArquivoSemantico() throws IOException {
+        BufferedWriter buffWrite = new BufferedWriter(new FileWriter("teste/saidaSemantico" + numeroArquivo + ".txt"));
+
+        if (listaErrosSemanticos.isEmpty()) {
+            buffWrite.append("\nSucesso!");
+        } else {
+
+            for (int i = 0; i < listaErrosSemanticos.size(); i++) {
+                buffWrite.append("\n" + listaErrosSemanticos.get(i));
             }
         }
         buffWrite.close();
         System.out.println("\nResultado da análise semântica no arquivo: saidaSemantico" + numeroArquivo + ".txt");
     }
 
+    public void imprimirTabelas() {
+
+        if (!tabelaConstantes.isEmpty()) {
+
+            for (Constante constante : tabelaConstantes) {
+                System.out.println("Constante: " + constante.getTipo() + " " + constante.getIdentificador() + " " + constante.getValor());
+            }
+        }
+
+        if (!tabelaVariaveis.isEmpty()) {
+
+            for (Variavel variavel : tabelaVariaveis) {
+                System.out.println("Variável " + variavel.getEscopo() + ": " + variavel.getTipo() + " " + variavel.getIdentificador() + " " + variavel.getValor());
+            }
+        }
+
+        if (!tabelaMetodos.isEmpty()) {
+
+            for (Metodo metodo : tabelaMetodos) {
+                System.out.print("Metodo " + metodo.getIdentificador() + ": " + metodo.getTipoRetorno() + " ");
+
+                if (!metodo.getListaParametros().isEmpty()) {
+
+                    for (String parametro : metodo.getListaParametros()) {
+                        System.out.print(parametro + " ");
+                    }
+                    System.out.println("");
+                }
+            }
+        }
+    }
+
     public void limparEstruturas() {
         listaTokens.clear();
-        listaErros.clear();
+        listaErrosSintaticos.clear();
+        listaErrosSemanticos.clear();
         tabelaConstantes.clear();
         tabelaVariaveis.clear();
+        tabelaMetodos.clear();
+        auxListaParam.clear();
         numTokenAtual = 0;
         numProxToken = 0;
         linhaErro = 0;
@@ -1296,6 +1382,47 @@ public class AnalisadorSemantico {
 
                         if ((identificador.equals(variavel.getIdentificador())) && (escopo.equals(variavel.getEscopo()))) {
                             return "existe";
+                        }
+                    }
+                    return "nao_existe";
+                } else {
+                    return "lista_vazia";
+                }
+            case "principal":
+
+                if (!tabelaMetodos.isEmpty()) {
+
+                    for (Metodo metodo : tabelaMetodos) {
+
+                        if ((identificador.equals(metodo.getIdentificador()))) {
+                            return "existe";
+                        }
+                    }
+                    return "nao_existe";
+                } else {
+                    return "lista_vazia";
+                }
+            case "metodo":
+
+                if (!tabelaMetodos.isEmpty()) {
+                    int tamanho = auxListaParam.size();
+                    int quantidade = 0;
+
+                    for (Metodo metodo : tabelaMetodos) {
+
+                        if ((identificador.equals(metodo.getIdentificador())) && (tamanho == metodo.getListaParametros().size())) {
+
+                            for (int i = 0; i < tamanho; i+=2) {
+
+                                if (auxListaParam.get(i).equals(metodo.getListaParametros().get(i))) {
+                                    quantidade++;
+                                }
+                            }
+
+                            if (quantidade == tamanho/2) {
+                                return "existe";
+                            }
+                            return "nao_existe";
                         }
                     }
                     return "nao_existe";
@@ -1352,11 +1479,22 @@ public class AnalisadorSemantico {
         }
     }
 
-    public int getPosTabela() {
+    public int getPosVariavel() {
 
         for (int i = 0; i < tabelaVariaveis.size(); i++) {
 
             if ((identificador.equals(tabelaVariaveis.get(i).getIdentificador())) && (escopo.equals(tabelaVariaveis.get(i).getEscopo()))) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    public int getPosMetodo(String identificador) {
+
+        for (int i = 0; i < tabelaMetodos.size(); i++) {
+
+            if (identificador.equals(tabelaMetodos.get(i).getIdentificador())) {
                 return i;
             }
         }
@@ -1370,4 +1508,6 @@ public class AnalisadorSemantico {
         }
         return false;
     }
+
+
 }

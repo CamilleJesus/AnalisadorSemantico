@@ -33,4 +33,12 @@ public class Variavel extends Constante {
     public void setTamanhoMatriz(Integer tamanhoMatriz) {
         this.tamanhoMatriz = tamanhoMatriz;
     }
+
+    public int soma(int a, int b) {
+        return (a + b);
+    }
+
+    public double soma(int a, double b) {
+        return (a + b);
+    }
 }

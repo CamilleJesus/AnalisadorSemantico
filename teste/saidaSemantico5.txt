@@ -1,2 +1,2 @@
 
-Erro semântico na linha 15. Tipo incompatível com a declaração.
+Erro semântico na linha 19. Assinatura de método já existente.

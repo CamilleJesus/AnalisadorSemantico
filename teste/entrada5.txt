@@ -9,10 +9,17 @@ programa {
 
 	}
 
+    metodo calcular( inteiro num2, texto abc2) : inteiro {
+
+        variaveis {
+            real pi = 3.14159;
+        }
+    }
+
 	metodo calcular( inteiro num, texto abc) : inteiro {  //Precisa de espaço entre delimitador e próximo token.
 
 	    variaveis {
-            inteiro b = padrao, c;
+            inteiro b = a, c;
 	    }
 	    c = 3;
     }
