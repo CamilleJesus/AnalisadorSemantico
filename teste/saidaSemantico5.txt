@@ -1,2 +1,3 @@
 
-Erro semântico na linha 19. Assinatura de método já existente.
+Erro semântico na linha 17. Identificador não declarado.
+Erro semântico na linha 21. Assinatura de método já existente.

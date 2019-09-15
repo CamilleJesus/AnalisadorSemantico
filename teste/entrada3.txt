@@ -15,6 +15,8 @@ programa {
         variaveis {
             real pi = 3.14159;
         }
+        leia(a);
+        escreva(a);
     }
 
 	metodo calcular( inteiro num, texto abc) : inteiro {  //Precisa de espaço entre delimitador e próximo token.
