@@ -11,6 +11,7 @@ import util.token.Token;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 
@@ -18,7 +19,8 @@ public class AnalisadorSemantico {
     private ArrayList<String>  PrimeiroDefConstante, PrimeiroDefMetodo, PrimeiroTipoId, PrimeiroAtribuicao, PrimeiroDefVariavel;
     private ArrayList<String> PrimeiroDefSe, PrimeiroDefEnquanto, PrimeiroDefEscreva, PrimeiroDefLeia, PrimeiroDefResultado;
     private ArrayList<String> PrimeiroOpRelacionalIgual, PrimeiroOpRelacionalOutros, PrimeiroOpAritmeticoAd, PrimeiroOpAritmeticoMul;
-    private ArrayList<String> PrimeiroOpUnario, PrimeiroOpPosfixo, listaErrosSintaticos, listaErrosSemanticos, PrimeiroDefPrincipal, auxListaParam;
+    private ArrayList<String> PrimeiroOpUnario, PrimeiroOpPosfixo, listaErrosSintaticos, listaErrosSemanticos, PrimeiroDefPrincipal;
+    private ArrayList<String> auxListaParam, auxListaArgs;
     private ArrayList<Token> listaTokens;
     private String token, tipoSimbolo, identificador, tipoValor, escopo, escopo2;
     private int numProxToken, numTokenAtual, numeroArquivo;
@@ -27,6 +29,7 @@ public class AnalisadorSemantico {
     private ArrayList<Constante> tabelaConstantes;
     private ArrayList<Variavel> tabelaVariaveis;
     private ArrayList<Metodo> tabelaMetodos;
+    private ArrayList<FlagMetodo> flagsMetodos;
 
     public AnalisadorSemantico() {
         PrimeiroDefConstante = new ArrayList<>();
@@ -54,6 +57,8 @@ public class AnalisadorSemantico {
         tabelaVariaveis = new ArrayList<>();
         tabelaMetodos = new ArrayList<>();
         auxListaParam = new ArrayList<>();
+        auxListaArgs = new ArrayList<>();
+        flagsMetodos = new ArrayList<>();
 
         // DEFINIÇÃO DOS CONJUNTOS PRIMEIROS
         PrimeiroDefConstante.add("constantes");
@@ -134,6 +139,7 @@ public class AnalisadorSemantico {
                 numeroArquivo = i + 1;
                 setListaTokens(listasTokens.get(i));
                 procedimentosGramatica();
+                checarFlagsMetodos();
                 escreverArquivoSintatico();
                 escreverArquivoSemantico();
                 imprimirTabelas();
@@ -457,7 +463,7 @@ public class AnalisadorSemantico {
                 identificador = token;
 
                 if ((!verificarTabela("constante", identificador, "").equals("existe")) && (!verificarTabela("variavel", identificador, escopo).equals("existe"))) {
-                    listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
+                    listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "identificador_naoDeclarado", ""));
                 }
             } else if (escopo2.equals("leia")) {
                 identificador = token;
@@ -465,10 +471,21 @@ public class AnalisadorSemantico {
                 if (verificarTabela("constante", identificador, "").equals("existe")) {
                     listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "atribuicao", ""));
                 } else if (!verificarTabela("variavel", identificador, escopo).equals("existe")) {
-                    listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
+                    listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "identificador_naoDeclarado", ""));
                 }
+            } else if (escopo2.equals("argumentos")) {
+                auxListaArgs.add(tipoValor);
+                auxListaArgs.add(token);
             } else if (tipoValor.equals("nao_existe")) {
-                listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
+                identificador = token;
+                String proxToken = listaTokens.get(numProxToken).getLexema();
+
+                if (proxToken.equals("(")) {
+                    //this.escopo2 = "argumentos";
+                    flagsMetodos.add(new FlagMetodo(identificador, linhaErro));
+                } else {
+                    listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "identificador_naoDeclarado", ""));
+                }
             } else if (verificarTipo()) {
 
                 if (verificarTabela("variavel", identificador, escopo).equals("existe")) {
@@ -988,7 +1005,7 @@ public class AnalisadorSemantico {
         }
 
         if (verificarTabela("variavel", token, escopo).equals("nao_existe")) {
-            listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "nao_declarado", ""));
+            listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "identificador_naoDeclarado", ""));
         }
         */
 
@@ -1236,6 +1253,7 @@ public class AnalisadorSemantico {
                 proximoToken();
             }
         } else if (token.equals("(")) {
+            this.escopo2 = "argumentos";
             proximoToken();
             OpPosfixo2();
         } else if (token.equals(".")) {
@@ -1252,11 +1270,15 @@ public class AnalisadorSemantico {
     public void OpPosfixo2() {
 
         if (token.equals(")")) {
+            this.escopo2 = "";
             proximoToken();
         } else if ((PrimeiroAtribuicao.contains(token)) || (listaTokens.get(numTokenAtual).getClasse().equals("IDENTIFICADOR")) || (listaTokens.get(numTokenAtual).getClasse().equals("NUMERO")) || (listaTokens.get(numTokenAtual).getClasse().equals("CADEIA_CARACTERES"))) {
             ListaArg();
 
             if(token.equals(")")) {
+                this.escopo2 = "";
+                getFlagMetodo(identificador, linhaErro).clonarListaArgumento(auxListaArgs);
+                auxListaArgs.clear();
                 proximoToken();
             } else {
                 listaErrosSintaticos.add(mensagemErroSintatico(linhaErro, "simbolo", ")"));
@@ -1267,42 +1289,50 @@ public class AnalisadorSemantico {
     }
 
     public String mensagemErroSintatico(long linhaErro, String tipo, String valor) {
+        String erroSintatico = "Erro sintático na linha ";
 
         if (tipo.equals("simbolo")) {
-            return ("Erro sintático na linha " + linhaErro + ". Símbolo esperado não encontrado: " + valor + ".");
+            return (erroSintatico + linhaErro + ". Símbolo esperado não encontrado: " + valor + ".");
         } else if (tipo.equals("numero")) {
-            return ("Erro sintático na linha " + linhaErro + ". Número esperado não encontrado: " + valor + ".");
+            return (erroSintatico + linhaErro + ". Número esperado não encontrado: " + valor + ".");
         } else if (tipo.equals("palavra")) {
-            return ("Erro sintático na linha " + linhaErro + ". Palavra reservada esperada não encontrada: " + valor + ".");
+            return (erroSintatico + linhaErro + ". Palavra reservada esperada não encontrada: " + valor + ".");
         } else if (tipo.equals("identificador")) {
-            return ("Erro sintático na linha " + linhaErro + ". Identificador de " + valor + " esperado não encontrado.");
+            return (erroSintatico + linhaErro + ". Identificador de " + valor + " esperado não encontrado.");
         } else if (tipo.equals("tipo")) {
-            return ("Erro sintático na linha " + linhaErro + ". Tipo esperado não encontrado.");
+            return (erroSintatico + linhaErro + ". Tipo esperado não encontrado.");
         } else if (tipo.equals("valor")) {
-            return ("Erro sintático na linha " + linhaErro + ". Valor esperado não encontrado.");
+            return (erroSintatico + linhaErro + ". Valor esperado não encontrado.");
         } else if (tipo.equals("bloco")) {
-            return ("Erro sintático na linha " + linhaErro + ". Bloco de comando " + valor + " esperado não encontrado.");
+            return (erroSintatico + linhaErro + ". Bloco de comando " + valor + " esperado não encontrado.");
         } else if (tipo.equals(" ")) {
-            return ("Erro sintático na linha " + linhaErro + "." + valor);
+            return (erroSintatico + linhaErro + "." + valor);
         }
         return "";
     }
 
     public String mensagemErroSemantico(long linhaErro, String tipo, String valor) {
+        String erroSemantico = "Erro semântico na linha ";
 
         switch (tipo) {
             case "tipo":
-                return ("Erro semântico na linha " + linhaErro + ". Tipo incompatível com a declaração.");
+                return (erroSemantico + linhaErro + ". Tipo incompatível com a declaração.");
             case "repetido":
-                return ("Erro semântico na linha " + linhaErro + ". Identificador já declarado.");
+                return (erroSemantico + linhaErro + ". Identificador já declarado.");
             case "atribuicao":
-                return ("Erro semântico na linha " + linhaErro + ". Tentativa de modificação de constante.");
-            case "nao_declarado":
-                return ("Erro semântico na linha " + linhaErro + ". Identificador não declarado.");
+                return (erroSemantico + linhaErro + ". Tentativa de modificação de constante.");
+            case "identificador_naoDeclarado":
+                return (erroSemantico + linhaErro + ". Identificador não declarado.");
+            case "metodo_naoDeclarado":
+                return (erroSemantico + linhaErro + ". Método não declarado.");
             case "assinatura":
-                return ("Erro semântico na linha " + linhaErro + ". Assinatura de método já existente.");
+                return (erroSemantico + linhaErro + ". Assinatura de método já existente.");
             case "nao_suportado":
-                return ("Erro semântico na linha " + linhaErro + ". Formato não suportado.");
+                return (erroSemantico + linhaErro + ". Formato não suportado.");
+            case "quant_ArgsIncompativeis":
+                return (erroSemantico + linhaErro + ". Chamada de método com quantidade de argumentos incompatíveis.");
+            case "tipo_ArgsIncompativeis":
+                return (erroSemantico + linhaErro + ". Chamada de método com tipo de argumentos incompatíveis.");
         }
         return null;
     }
@@ -1376,7 +1406,9 @@ public class AnalisadorSemantico {
         tabelaConstantes.clear();
         tabelaVariaveis.clear();
         tabelaMetodos.clear();
+        flagsMetodos.clear();
         auxListaParam.clear();
+        auxListaArgs.clear();
         numTokenAtual = 0;
         numProxToken = 0;
         linhaErro = 0;
@@ -1515,17 +1547,6 @@ public class AnalisadorSemantico {
         return 0;
     }
 
-    public int getPosMetodo(String identificador) {
-
-        for (int i = 0; i < tabelaMetodos.size(); i++) {
-
-            if (identificador.equals(tabelaMetodos.get(i).getIdentificador())) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
     public boolean verificarTipo() {
 
         if (this.tipoSimbolo.equals(tipoValor)) {
@@ -1534,5 +1555,78 @@ public class AnalisadorSemantico {
         return false;
     }
 
+    public void checarFlagsMetodos() {
 
+        if (!flagsMetodos.isEmpty()) {
+
+            for (FlagMetodo flag : flagsMetodos) {
+
+                if (verificarMetodo(flag.getIdentificador()).equals("existe")) {
+                    Metodo metodo = getMetodo(flag.getIdentificador(), flag.getListaArgumentos());
+
+                    if (metodo == null) {
+                        listaErrosSemanticos.add(mensagemErroSemantico(flag.getLinha(), "quant_ArgsIncompativeis", ""));
+                    } else {
+                        int tamanho = metodo.getListaParametros().size(), quantidade = 0;
+
+                        for (int i = 0; i < tamanho; i+=2) {
+
+                            if (flag.getListaArgumentos().get(i).equals(metodo.getListaParametros().get(i))) {
+                                quantidade++;
+                            }
+                        }
+
+                        if (quantidade != tamanho/2) {
+                            listaErrosSemanticos.add(mensagemErroSemantico(flag.getLinha(), "tipo_ArgsIncompativeis", ""));
+                        }
+                    }
+                } else {
+                    listaErrosSemanticos.add(mensagemErroSemantico(flag.getLinha(), "metodo_naoDeclarado", ""));
+                }
+            }
+        }
+    }
+
+    public FlagMetodo getFlagMetodo(String identificador, long linha) {
+
+        if (!flagsMetodos.isEmpty()) {
+
+            for (FlagMetodo flag : flagsMetodos) {
+
+                if ((identificador.equals(flag.getIdentificador()) && (linha == flag.getLinha()))) {
+                    return flag;
+                }
+            }
+        }
+        return null;
+    }
+
+    public String verificarMetodo(String identificador) {
+
+        if (!tabelaMetodos.isEmpty()) {
+
+            for (Metodo metodo : tabelaMetodos) {
+
+                if (identificador.equals(metodo.getIdentificador())) {
+                    return "existe";
+                }
+            }
+            return "nao_existe";
+        }
+        return "lista_vazia";
+    }
+
+    public Metodo getMetodo(String identificador, ArrayList<String> listaArgs) {
+
+        if (!tabelaMetodos.isEmpty()) {
+
+            for (Metodo metodo : tabelaMetodos) {
+
+                if ((identificador.equals(metodo.getIdentificador())) && (listaArgs.size() == metodo.getListaParametros().size())) {
+                    return metodo;
+                }
+            }
+        }
+        return null;
+    }
 }

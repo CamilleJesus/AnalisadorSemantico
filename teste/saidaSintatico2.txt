@@ -1,2 +1,2 @@
 
-Sucesso!
+Erro sintático na linha 11. Símbolo esperado não encontrado: ;.

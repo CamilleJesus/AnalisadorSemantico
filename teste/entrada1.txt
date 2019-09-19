@@ -6,7 +6,8 @@ programa {
 	}
 
 	metodo principal ( boleano logico) : vazio {
-
+        calcular(a);
+        calcular(a, padrao);
 	}
 
 	metodo calcular( inteiro num) : inteiro {
