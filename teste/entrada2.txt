@@ -2,14 +2,27 @@ programa {
 
 	constantes {
 		inteiro a = 0;
-		inteiro a = 7;
+		inteiro a = 7;   //IDENTIFICADOR REPETIDO
 		texto padrao = "Hello World!";
 	}
 
 	metodo principal ( boleano logico) : vazio {
-	    calcular(logico)
-        calcular(a, logico);
-	}
+
+        variaveis {
+                inteiro b = a;
+                real c;
+         }
+        c = calcular(a, padrao);   //c É real E CALCULAR RETORNA inteiro
+        a = calcular(b, padrao);   //a É CONSTANTE
+    }
+
+	metodo calcular( inteiro num, texto abc) : inteiro {
+
+	    variaveis {
+            inteiro b = padrao, c;   //b É inteiro E padrao É TEXTO
+	    }
+	    c = 3;
+    }
 
 	metodo calcular( texto num, inteiro abc) : inteiro {
 
@@ -18,13 +31,5 @@ programa {
         }
         leia(num, pi);
         escreva(num, pi);
-    }
-
-	metodo calcular( inteiro num, texto abc) : inteiro {  //Precisa de espaço entre delimitador e próximo token.
-
-	    variaveis {
-            inteiro b = padrao, c;
-	    }
-	    c = 3;
     }
 }

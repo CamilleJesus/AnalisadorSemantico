@@ -1,5 +1,5 @@
 
 Erro semântico na linha 5. Identificador já declarado.
-Erro semântico na linha 26. Tipo incompatível com a declaração.
-Erro semântico na linha 10. Chamada de método com quantidade de argumentos incompatíveis.
-Erro semântico na linha 11. Chamada de método com tipo de argumentos incompatíveis.
+Erro semântico na linha 15. Tipo incompatível com a declaração.
+Erro semântico na linha 16. Tentativa de modificação de constante.
+Erro semântico na linha 22. Tipo incompatível com a declaração.

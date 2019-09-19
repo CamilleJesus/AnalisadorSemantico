@@ -1,12 +1,17 @@
-programa {
+programa {   //ARQUIVO SEM ERROS
 
 	constantes {
 		inteiro a = 0;
 		texto padrao = "Hello World!";
 	}
 
-	metodo principal ( boleano logico) : vazio {
-        calcular(a);
+	metodo principal ( boleano logico) : vazio {   //Precisa de espaço entre delimitador e próximo token.
+
+	    variaveis {
+                inteiro b = a;
+                real c;
+    	 }
+        b = calcular(a);
         calcular(a, padrao);
 	}
 

@@ -481,7 +481,6 @@ public class AnalisadorSemantico {
                 String proxToken = listaTokens.get(numProxToken).getLexema();
 
                 if (proxToken.equals("(")) {
-                    //this.escopo2 = "argumentos";
                     flagsMetodos.add(new FlagMetodo(identificador, linhaErro));
                 } else {
                     listaErrosSemanticos.add(mensagemErroSemantico(linhaErro, "identificador_naoDeclarado", ""));
@@ -1488,17 +1487,6 @@ public class AnalisadorSemantico {
                 }
         }
         return null;
-    }
-
-    public String getTipoTabela() {
-
-        for (Constante constante : tabelaConstantes) {
-
-            if (identificador.equals(constante.getIdentificador())) {
-                return constante.getTipo();
-            }
-        }
-        return "inexistente";
     }
 
     public String retornarTipo(String identificador, String valor) {

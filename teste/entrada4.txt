@@ -6,7 +6,7 @@ programa {
 	}
 
 	metodo principal ( boleano logico) : vazio {
-        a = 7;
+        a = 7;   //a É CONSTANTE
 	}
 
 	metodo calcular( inteiro num, texto abc) : real {
@@ -14,11 +14,11 @@ programa {
         variaveis {
             real pi = 3.14159;
         }
-        leia(d);
+        leia(d);   //d NÃO FOI DECLARADO
         escreva(27);
     }
 
-	metodo calcular( inteiro num, texto abc) : inteiro {  //Precisa de espaço entre delimitador e próximo token.
+	metodo calcular( inteiro num, texto abc) : inteiro {   //MÉTODO REPETIDO
 
 	    variaveis {
             inteiro b = a, c;

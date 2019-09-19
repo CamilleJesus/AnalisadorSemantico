@@ -2,27 +2,33 @@ programa {
 
 	constantes {
 		inteiro a = 0;
-		texto a = "Olá Mundo!";
+		texto a = "Olá Mundo!";   //IDENTIFICADOR REPETIDO
 		texto padrao = "Hello World!";
 	}
 
 	metodo principal ( boleano logico) : vazio {
 
-	}
+        variaveis {
+                inteiro b = a;
+                real c;
+         }
+        b = calcular(logico)   //QUANTIDADE DE ARGUMENTOS INCOMPATÍVEIS
+        b = calcular(a, logico);   //TIPO DE ARGUMENTOS INCOMPATÍVEIS
+    }
 
 	metodo calcular( texto abc, inteiro num) : inteiro {
 
         variaveis {
             real pi = 3.14159;
         }
-        leia(a);
+        leia(a);   //a É CONSTANTE
         escreva(a);
     }
 
 	metodo calcular( inteiro num, texto abc) : inteiro {  //Precisa de espaço entre delimitador e próximo token.
 
 	    variaveis {
-            inteiro b = d, c;
+            inteiro b = d, c;   //d NÃO FOI DECLARADO
 	    }
 	    c = 3;
     }
