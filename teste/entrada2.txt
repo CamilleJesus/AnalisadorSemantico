@@ -16,14 +16,6 @@ programa {
         a = calcular(b, padrao);   //a É CONSTANTE
     }
 
-	metodo calcular( inteiro num, texto abc) : inteiro {
-
-	    variaveis {
-            inteiro b = padrao, c;   //b É inteiro E padrao É TEXTO
-	    }
-	    c = 3;
-    }
-
 	metodo calcular( texto num, inteiro abc) : inteiro {
 
         variaveis {
@@ -31,5 +23,13 @@ programa {
         }
         leia(num, pi);
         escreva(num, pi);
+    }
+
+	metodo calcular( inteiro num, texto abc) : inteiro {
+
+	    variaveis {
+            inteiro b = padrao, c;   //b É inteiro E padrao É TEXTO
+	    }
+	    c = 3;
     }
 }

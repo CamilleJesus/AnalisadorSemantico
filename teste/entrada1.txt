@@ -29,5 +29,6 @@ programa {   //ARQUIVO SEM ERROS
             inteiro b = a, c;
 	    }
 	    c = 3;
+	    resultado c;
     }
 }

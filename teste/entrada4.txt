@@ -16,6 +16,7 @@ programa {
         }
         leia(d);   //d NÃO FOI DECLARADO
         escreva(27);
+        resultado num;   //num É INTEIRO E calcular RETORNA REAL
     }
 
 	metodo calcular( inteiro num, texto abc) : inteiro {   //MÉTODO REPETIDO
@@ -24,5 +25,6 @@ programa {
             inteiro b = a, c;
 	    }
 	    c = 3;
+	    resultado 3;
     }
 }

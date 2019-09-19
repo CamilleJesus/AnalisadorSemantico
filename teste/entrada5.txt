@@ -6,7 +6,7 @@ programa {
 	}
 
 	metodo principal ( boleano logico) : vazio {
-
+        resultado "Olá, mundo";   //RETORNANDO texto E MÉTODO TEM RETORNO vazio.
 	}
 
     metodo calcular( inteiro num2, texto abc2) : inteiro {
